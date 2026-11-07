@@ -1,0 +1,19 @@
+# secrets
+.env
+!.env.example
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.db
+
+# node
+node_modules/
+dist/
+
+# os / editor
+.DS_Store
+.vscode/
+.claude/

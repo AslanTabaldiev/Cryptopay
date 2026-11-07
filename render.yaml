@@ -1,0 +1,33 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Один веб-сервис (сайт + API из Dockerfile) и бесплатная база PostgreSQL.
+services:
+  - type: web
+    name: cryptopay
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass # деплой только если GitHub Actions (CI) прошёл
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cryptopay-db
+          property: connectionString
+      - key: MERCHANT_ADDRESS
+        sync: false # публичный адрес магазина из MetaMask (0x...)
+      - key: MERCHANT_API_KEY
+        generateValue: true # ключ для кабинета; посмотреть во вкладке Environment
+      - key: WEBHOOK_SECRET
+        generateValue: true
+      - key: WEBHOOK_URL
+        sync: false # необязательно, например https://webhook.site/...
+      - key: RPC_URL
+        value: https://ethereum-sepolia-rpc.publicnode.com
+      - key: REQUIRED_CONFIRMATIONS
+        value: "2"
+
+databases:
+  - name: cryptopay-db
+    plan: free
+    databaseName: cryptopay
+    user: cryptopay
