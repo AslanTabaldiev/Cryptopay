@@ -9,8 +9,11 @@
 вебхуком с подписью HMAC. Система **non-custodial**: она не касается
 приватных ключей, а деньги идут напрямую от покупателя продавцу.
 
-- **Демо:** _вставьте сюда URL с Render_
-- **Документация API (Swagger):** _URL с Render_`/docs`
+- **Демо:** https://cryptopay-lw6t.onrender.com
+- **Документация API (Swagger):** https://cryptopay-lw6t.onrender.com/docs
+- **Пример реальной оплаты в Sepolia:** [0x6f9a…1006](https://sepolia.etherscan.io/tx/0x6f9adf40fafc6bff3a657912c85837bd55225cdc15b61cfa09a52b15c09b1006)
+
+> Сервис на бесплатном тарифе Render: после 15 минут простоя первый запрос может идти 30–50 секунд.
 
 ## Документация
 
