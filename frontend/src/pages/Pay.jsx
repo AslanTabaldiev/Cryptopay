@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import { api, FINAL_STATUSES } from "../lib/api.js";
 import {
@@ -11,6 +11,7 @@ import {
   sendPayment,
   shortAddress,
 } from "../lib/wallet.js";
+import BackLink from "../components/BackLink.jsx";
 import StatusPill from "../components/StatusPill.jsx";
 
 function useCountdown(expiresAt) {
@@ -109,9 +110,13 @@ export default function Pay() {
   if (loadError) {
     return (
       <div className="page narrow">
+        <BackLink fallback="/" />
         <div className="card pay-card center-text">
           <h1 className="title-sm">Счёт недоступен</h1>
           <p className="muted">{loadError}</p>
+          <div className="next-actions">
+            <Link className="btn btn-primary full" to="/">На главную</Link>
+          </div>
         </div>
       </div>
     );
@@ -129,6 +134,7 @@ export default function Pay() {
 
   return (
     <div className="page narrow">
+      <BackLink fallback="/" />
       <div className="card pay-card">
         <div className="row-between">
           <span className="muted small">Оплата криптовалютой</span>
@@ -155,6 +161,11 @@ export default function Pay() {
 
         {status === "awaiting_payment" && (
           <div className="pay-actions">
+            <ol className="mini-steps">
+              <li className={account ? "done" : "current"}>Подключите MetaMask</li>
+              <li className={account ? "current" : ""}>Нажмите «Оплатить» и подтвердите перевод</li>
+              <li>Дождитесь подтверждения сети</li>
+            </ol>
             {!metamask ? (
               <>
                 <a className="btn btn-primary full" href={METAMASK_DOWNLOAD_URL} target="_blank" rel="noreferrer">
@@ -180,6 +191,9 @@ export default function Pay() {
                 <p className="muted small center-text">Подключён: <span className="mono">{shortAddress(account)}</span></p>
               </>
             )}
+            <p className="muted small center-text">
+              Нет тестовых ETH? <Link to="/#guide">Как получить бесплатно</Link>
+            </p>
           </div>
         )}
 
@@ -191,6 +205,7 @@ export default function Pay() {
             <p className="muted small">
               {invoice.confirmations} из {invoice.required_confirmations} · обычно меньше минуты
             </p>
+            <p className="muted small">Страницу можно закрыть — платёж всё равно будет засчитан.</p>
           </div>
         )}
 
@@ -198,14 +213,28 @@ export default function Pay() {
           <div className="state-box success">
             <div className="check" aria-hidden>✓</div>
             <p><strong>Оплата получена</strong></p>
-            <p className="muted small">Подтверждено в блокчейне в {invoice.paid_at && new Date(invoice.paid_at).toLocaleTimeString("ru-RU")}</p>
+            <p className="muted small">
+              Подтверждено в блокчейне в {invoice.paid_at && new Date(invoice.paid_at).toLocaleTimeString("ru-RU")}.
+              Продавец уже получил деньги и уведомление.
+            </p>
+            <div className="next-actions">
+              <a className="btn btn-primary full" href={invoice.explorer_tx_url} target="_blank" rel="noreferrer">
+                Посмотреть транзакцию в Etherscan ↗
+              </a>
+              <Link className="btn btn-secondary full" to="/dashboard">Создать новый счёт</Link>
+              <Link className="btn btn-link" to="/">На главную</Link>
+            </div>
           </div>
         )}
 
         {status === "expired" && (
           <div className="state-box">
             <p><strong>Срок действия счёта истёк</strong></p>
-            <p className="muted small">Попросите у продавца новую ссылку на оплату.</p>
+            <p className="muted small">Оплатить этот счёт уже нельзя. Попросите у продавца новую ссылку или создайте новый счёт.</p>
+            <div className="next-actions">
+              <Link className="btn btn-primary full" to="/dashboard">Создать новый счёт</Link>
+              <Link className="btn btn-link" to="/">На главную</Link>
+            </div>
           </div>
         )}
 
@@ -213,6 +242,10 @@ export default function Pay() {
           <div className="state-box danger">
             <p><strong>Оплата не прошла</strong></p>
             <p className="muted small">{invoice.failure_reason}</p>
+            <div className="next-actions">
+              <Link className="btn btn-primary full" to="/dashboard">Создать новый счёт</Link>
+              <Link className="btn btn-link" to="/">На главную</Link>
+            </div>
           </div>
         )}
 

@@ -17,6 +17,8 @@ def require_api_key(
     x_api_key: str | None = Header(default=None, description="Merchant API key"),
     container: Container = Depends(get_container),
 ) -> None:
+    if not container.settings.auth_required:
+        return  # демо-режим: ключ не задан в настройках
     expected = container.settings.merchant_api_key
     if not x_api_key or not secrets.compare_digest(x_api_key, expected):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Неверный или отсутствующий X-API-Key")

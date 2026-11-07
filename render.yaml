@@ -16,7 +16,7 @@ services:
       - key: MERCHANT_ADDRESS
         sync: false # публичный адрес магазина из MetaMask (0x...)
       - key: MERCHANT_API_KEY
-        generateValue: true # ключ для кабинета; посмотреть во вкладке Environment
+        sync: false # пусто = демо-режим (счета без ключа); задайте значение, чтобы закрыть кабинет паролем
       - key: WEBHOOK_SECRET
         generateValue: true
       - key: WEBHOOK_URL

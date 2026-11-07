@@ -42,7 +42,7 @@ backend/                сервис на FastAPI
     api/                HTTP-маршруты, схемы, проверка API-ключа
     container.py        корень композиции (внедрение зависимостей)
     main.py             фабрика приложения; отдаёт и API, и собранный сайт
-  tests/                модульные и API-тесты с заменителями (32 теста)
+  tests/                модульные и API-тесты с заменителями (38 тестов)
 frontend/               сайт на React (Vite): главная, кабинет, страница оплаты
 docs/                   требования и UML-диаграммы
 Dockerfile              сборка сайта и API в один контейнер
@@ -56,10 +56,12 @@ render.yaml             Blueprint для Render (веб-сервис + PostgreSQ
 |---|---|---|---|
 | `GET` | `/health` | – | Проверка работоспособности |
 | `GET` | `/api/config` | – | Сеть, chain id и адрес продавца |
-| `POST` | `/api/invoices` | `X-API-Key` | Создать счёт `{amount_eth, description, order_id?, ttl_minutes?}` |
-| `GET` | `/api/invoices` | `X-API-Key` | Список последних счетов |
+| `POST` | `/api/invoices` | `X-API-Key`* | Создать счёт `{amount_eth, description, order_id?, ttl_minutes?}` |
+| `GET` | `/api/invoices` | `X-API-Key`* | Список последних счетов |
 | `GET` | `/api/invoices/{id}` | – | Публичные данные счёта (для страницы оплаты) |
 | `POST` | `/api/invoices/{id}/transaction` | – | Передать хэш транзакции `{tx_hash}` |
+
+\* Ключ нужен, только если на сервере задан `MERCHANT_API_KEY`. Если он пустой, работает **демо-режим**: счета можно создавать без ключа. Так удобнее показывать проект.
 
 События вебхука: `invoice.paid`, `invoice.failed` и `invoice.expired`.
 Заголовок `X-Signature` содержит `hex(HMAC_SHA256(WEBHOOK_SECRET, тело))`.
@@ -73,7 +75,7 @@ render.yaml             Blueprint для Render (веб-сервис + PostgreSQ
 cd backend
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-cp .env.example .env          # укажите MERCHANT_ADDRESS и MERCHANT_API_KEY
+cp .env.example .env          # укажите MERCHANT_ADDRESS (MERCHANT_API_KEY можно оставить пустым)
 .venv/bin/uvicorn app.main:create_app --factory --reload
 # → http://localhost:8000/docs
 ```
@@ -109,7 +111,7 @@ cd backend && .venv/bin/python -m pytest -q
    - веб-сервис `cryptopay` (Docker: сайт + API);
    - бесплатную базу PostgreSQL `cryptopay-db`. Строка подключения подставится в `DATABASE_URL` автоматически.
 3. Во время создания укажите `MERCHANT_ADDRESS` (публичный адрес из MetaMask) и, если нужно, `WEBHOOK_URL`.
-4. После деплоя откройте вкладку **Environment** сервиса и скопируйте сгенерированный `MERCHANT_API_KEY`. Это ключ для кабинета.
+4. `MERCHANT_API_KEY` оставьте пустым для демо-режима (кнопка «Попробовать оплату» на главной работает без ключа) или задайте пароль, чтобы закрыть кабинет.
 5. Сайт будет доступен по адресу вида `https://cryptopay-xxxx.onrender.com`, Swagger — по адресу `/docs`.
 6. Необязательно: чтобы бесплатный сервис не засыпал, настройте UptimeRobot на запрос `https://…onrender.com/health` каждые 10 минут.
 
@@ -129,9 +131,8 @@ flowchart LR
 
 ## Сценарий демонстрации
 
-1. Откройте **Кабинет**, введите API-ключ и создайте счёт на 0.001 ETH.
-2. Нажмите **Копировать ссылку** и откройте страницу оплаты.
-3. Нажмите **Подключить MetaMask**, затем **Оплатить** и подтвердите транзакцию в MetaMask.
-4. Следите за статусом: *Ожидает оплаты → Подтверждается (1 из 2, 2 из 2) → Оплачен*.
-5. Покажите транзакцию в Sepolia Etherscan и, если он настроен, вебхук на webhook.site.
-6. Граничные случаи: дайте счёту истечь или попробуйте использовать тот же хэш транзакции для второго счёта (ответ 409).
+1. На главной нажмите **Попробовать оплату**. Или откройте **Кабинет**, создайте счёт на 0.001 ETH и нажмите **Перейти к оплате**.
+2. Нажмите **Подключить MetaMask**, затем **Оплатить** и подтвердите транзакцию в MetaMask.
+3. Следите за статусом: *Ожидает оплаты → Подтверждается (1 из 2, 2 из 2) → Оплачен*.
+4. Покажите транзакцию в Sepolia Etherscan (кнопка на странице после оплаты) и, если он настроен, вебхук на webhook.site.
+5. Граничные случаи: дайте счёту истечь или попробуйте использовать тот же хэш транзакции для второго счёта (ответ 409).

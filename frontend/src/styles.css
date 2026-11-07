@@ -196,8 +196,8 @@ a:hover { text-decoration: underline; }
 .invoice-list { list-style: none; margin: 0; padding: 0; }
 .invoice-row {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
-  gap: 16px;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px 16px;
   align-items: center;
   padding: 14px 0;
   border-top: 1px solid var(--border);
@@ -205,10 +205,10 @@ a:hover { text-decoration: underline; }
 .invoice-main { display: flex; flex-direction: column; min-width: 0; }
 .invoice-main strong { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .invoice-amount { font-weight: 600; font-variant-numeric: tabular-nums; }
-.invoice-actions { display: flex; gap: 4px; }
+.invoice-actions { display: flex; gap: 12px; grid-column: 1 / -1; margin-left: -4px; }
 @media (max-width: 640px) {
   .invoice-row { grid-template-columns: 1fr auto; }
-  .invoice-actions { grid-column: 1 / -1; }
+  .invoice-row .pill { grid-column: 1 / -1; justify-self: start; }
 }
 
 /* ---------- status pills ---------- */
@@ -297,4 +297,100 @@ a:hover { text-decoration: underline; }
   .title { font-size: 32px; }
   .card, .pay-card { padding: 22px; }
   .pay-amount { font-size: 44px; }
+}
+
+/* ---------- навигация и подсказки ---------- */
+.back-link {
+  font: inherit;
+  font-size: 15px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 16px;
+  cursor: pointer;
+}
+.back-link:hover { text-decoration: underline; }
+.page.narrow .back-link { display: block; }
+.hint { font-size: 12px; color: var(--text-2); line-height: 1.4; }
+.notice {
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text);
+  font-size: 15px;
+}
+.stack { display: flex; flex-direction: column; gap: 20px; }
+.created-card { text-align: center; }
+.created-card h3 { margin: 4px 0; font-size: 19px; }
+.created-actions, .next-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; align-items: stretch; }
+.next-actions .btn-link { align-self: center; }
+.check.small-check { width: 44px; height: 44px; font-size: 22px; margin-bottom: 8px; }
+
+/* ---------- главная ---------- */
+.btn-lg { font-size: 17px; padding: 14px 28px; }
+.hero-note { margin-top: 16px; }
+.narrow-alert { max-width: 480px; margin: 16px auto 0; }
+.section { margin-top: 72px; }
+.section-title { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; text-align: center; margin: 0 0 28px; }
+.section-foot { margin-top: 24px; }
+.roles { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 720px) { .roles { grid-template-columns: 1fr; } }
+.role-card { color: var(--text); display: block; transition: transform 0.15s; }
+.role-card:hover { text-decoration: none; transform: translateY(-2px); }
+.role-card h3 { margin: 12px 0 6px; font-size: 21px; }
+.role-card p { margin: 0 0 16px; color: var(--text-2); font-size: 15px; }
+.role-icon { font-size: 32px; }
+.role-cta { color: var(--accent); font-size: 15px; }
+.guide { list-style: none; margin: 0; counter-reset: guide; max-width: 680px; margin-inline: auto; }
+.guide li {
+  counter-increment: guide;
+  position: relative;
+  padding: 14px 0 14px 48px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.guide li:first-child { border-top: none; }
+.guide li::before {
+  content: counter(guide);
+  position: absolute;
+  left: 0;
+  top: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 15px;
+}
+.guide span { color: var(--text-2); font-size: 15px; }
+
+/* ---------- шаги на странице оплаты ---------- */
+.mini-steps { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mini-steps li { font-size: 14px; color: var(--text-2); padding-left: 26px; position: relative; }
+.mini-steps li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+}
+.mini-steps li.current { color: var(--text); font-weight: 500; }
+.mini-steps li.current::before { border-color: var(--accent); background: var(--accent); }
+.mini-steps li.done { color: var(--success); }
+.mini-steps li.done::before { border-color: var(--success); background: var(--success); }
+
+.brand, .nav-links a { white-space: nowrap; }
+@media (max-width: 480px) {
+  .nav-links { gap: 14px; }
+  .nav-links a { font-size: 13px; }
+  .nav-links .nav-optional { display: none; }
 }

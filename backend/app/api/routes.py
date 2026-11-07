@@ -36,6 +36,7 @@ def get_config(c: Container = Depends(get_container)) -> ConfigResponse:
         explorer_url=s.explorer_url,
         merchant_address=s.merchant_address,
         required_confirmations=c.payment_service.required_confirmations,
+        auth_required=s.auth_required,
     )
 
 

@@ -48,6 +48,10 @@ export function onMetaMaskDetected(callback) {
 function friendlyError(error) {
   if (error?.code === 4001) return new Error("Вы отклонили запрос в MetaMask.");
   if (error?.code === -32002) return new Error("В MetaMask уже есть открытый запрос. Откройте расширение, чтобы продолжить.");
+  const text = String(error?.message || "").toLowerCase();
+  if (text.includes("insufficient funds")) {
+    return new Error("Недостаточно тестовых ETH на балансе. Получите их бесплатно через Sepolia faucet (инструкция на главной).");
+  }
   return new Error(error?.message || "Ошибка MetaMask");
 }
 

@@ -76,6 +76,7 @@ class ConfigResponse(BaseModel):
     explorer_url: str
     merchant_address: str
     required_confirmations: int
+    auth_required: bool
 
 
 class ErrorResponse(BaseModel):

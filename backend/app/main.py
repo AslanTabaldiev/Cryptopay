@@ -10,10 +10,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.api.routes import router
+from app.api.validation_messages import describe_validation_errors
 from app.config import Settings
 from app.container import Container
 from app.domain.errors import (
@@ -68,7 +70,17 @@ def create_app(container: Container | None = None) -> FastAPI:
 
     async def handle_error(_: Request, exc: Exception) -> JSONResponse:
         code = next((c for t, c in ERROR_STATUS.items() if isinstance(exc, t)), 400)
-        return JSONResponse(status_code=code, content={"detail": str(exc)})
+        if isinstance(exc, BlockchainError):
+            logging.getLogger("cryptopay").warning("blockchain error: %s", exc)
+            detail = "Сеть Ethereum временно недоступна. Попробуйте ещё раз через минуту."
+        else:
+            detail = str(exc)
+        return JSONResponse(status_code=code, content={"detail": detail})
+
+    async def handle_validation(_: Request, exc: RequestValidationError) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"detail": describe_validation_errors(exc.errors())})
+
+    app.add_exception_handler(RequestValidationError, handle_validation)
 
     for exc_type in (DomainError, InvalidStateTransition, BlockchainError, ValueError):
         app.add_exception_handler(exc_type, handle_error)

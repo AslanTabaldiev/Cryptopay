@@ -38,6 +38,11 @@ class Settings:
     run_watcher: bool = True
     static_dir: str | None = None  # собранный React (frontend/dist); в Docker — /app/static
 
+    @property
+    def auth_required(self) -> bool:
+        """Пустой MERCHANT_API_KEY = демо-режим: создавать счета можно без ключа."""
+        return bool(self.merchant_api_key)
+
     @classmethod
     def from_env(cls) -> "Settings":
         _load_dotenv(Path(__file__).resolve().parent.parent / ".env")
@@ -57,7 +62,7 @@ class Settings:
             network_name=env("NETWORK_NAME", "Sepolia"),
             explorer_url=env("EXPLORER_URL", "https://sepolia.etherscan.io").rstrip("/"),
             merchant_address=env("MERCHANT_ADDRESS", "0x0000000000000000000000000000000000000000"),
-            merchant_api_key=env("MERCHANT_API_KEY", "dev-secret-key"),
+            merchant_api_key=env("MERCHANT_API_KEY", "").strip(),
             required_confirmations=int(env("REQUIRED_CONFIRMATIONS", "2")),
             default_ttl_minutes=int(env("DEFAULT_TTL_MINUTES", "15")),
             tx_not_found_timeout_minutes=int(env("TX_NOT_FOUND_TIMEOUT_MINUTES", "10")),
