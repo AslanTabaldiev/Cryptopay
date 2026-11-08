@@ -1,42 +1,36 @@
-"""Режимы доступа к API магазина и русские сообщения об ошибках."""
+"""Переключатель API-ключа и русские сообщения об ошибках."""
 
 import pytest
-from fastapi.testclient import TestClient
 
-from app.config import Settings
-from app.container import Container
-from app.main import create_app
-from tests.fakes import MERCHANT, FakeBlockchain, InMemoryInvoiceRepository, RecordingNotifier
-
-
-def make_client(api_key: str) -> TestClient:
-    settings = Settings(
-        database_url="sqlite://", rpc_url="http://unused", chain_id=11155111, network_name="Sepolia",
-        explorer_url="https://sepolia.etherscan.io", merchant_address=MERCHANT, merchant_api_key=api_key,
-        required_confirmations=1, default_ttl_minutes=15, tx_not_found_timeout_minutes=10,
-        poll_interval_seconds=60, webhook_url=None, webhook_secret="s", run_watcher=False,
-    )
-    container = Container.build(
-        settings, repo=InMemoryInvoiceRepository(), chain=FakeBlockchain(), notifier=RecordingNotifier()
-    )
-    return TestClient(create_app(container))
-
+from tests.fakes import make_client
 
 BODY = {"amount_eth": "0.001", "description": "Кофе"}
 
 
-def test_demo_mode_needs_no_key():
-    client = make_client(api_key="")
+def test_key_is_off_by_default_and_shown_on_site():
+    client, *_ = make_client()
     assert client.get("/api/config").json()["auth_required"] is False
+    access = client.get("/api/access").json()
+    assert access == {"required": False, "api_key": "cryptopay-demo-key"}
     assert client.post("/api/invoices", json=BODY).status_code == 201
-    assert client.get("/api/invoices").status_code == 200
 
 
-def test_protected_mode_requires_key():
-    client = make_client(api_key="secret")
+def test_toggle_turns_key_check_on_and_off():
+    client, *_ = make_client(api_key="secret")
+
+    assert client.post("/api/access", json={"required": True}).json() == {"required": True, "api_key": "secret"}
     assert client.get("/api/config").json()["auth_required"] is True
     assert client.post("/api/invoices", json=BODY).status_code == 401
+    assert client.post("/api/invoices", json=BODY, headers={"X-API-Key": "wrong"}).status_code == 401
     assert client.post("/api/invoices", json=BODY, headers={"X-API-Key": "secret"}).status_code == 201
+
+    client.post("/api/access", json={"required": False})
+    assert client.post("/api/invoices", json=BODY).status_code == 201
+
+
+def test_key_required_from_settings():
+    client, *_ = make_client(api_key="k", api_key_required=True)
+    assert client.post("/api/invoices", json=BODY).status_code == 401
 
 
 @pytest.mark.parametrize(
@@ -49,6 +43,7 @@ def test_protected_mode_requires_key():
     ],
 )
 def test_validation_errors_are_in_russian(body, expected):
-    r = make_client(api_key="").post("/api/invoices", json=body)
+    client, *_ = make_client()
+    r = client.post("/api/invoices", json=body)
     assert r.status_code == 422
     assert r.json()["detail"] == expected

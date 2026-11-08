@@ -1,19 +1,25 @@
 # 4. Диаграмма классов
 
-Бэкенд построен по **гексагональной архитектуре (порты и адаптеры)**:
+Бэкенд — это 10 файлов в одной папке `backend/app/`. Каждый файл отвечает за одну часть системы:
 
-- **domain** — чистые бизнес-объекты, без фреймворков;
-- **ports** — абстрактные интерфейсы, которые нужны ядру (`BlockchainGateway`, `InvoiceRepository`, `PaymentNotifier`);
-- **services** — сценарии использования, зависят только от портов;
-- **adapters** — конкретная инфраструктура (JSON-RPC, SQLAlchemy, вебхуки);
-- **api / workers** — точки входа (HTTP и фоновый цикл);
-- **container** — корень композиции: подставляет адаптеры в сервисы (внедрение зависимостей).
+| Файл | Что внутри |
+|---|---|
+| `models.py` | Счёт `Invoice`, его статусы (конечный автомат) и бизнес-ошибки |
+| `blockchain.py` | Интерфейс `BlockchainGateway` и реализация `EthereumRpcGateway` (JSON-RPC) |
+| `database.py` | Интерфейсы `InvoiceRepository`, `TimelineRepository` и их реализации на SQLAlchemy |
+| `notifications.py` | Интерфейс `PaymentNotifier`: лог, хронология, вебхук, Telegram, рассылка нескольким |
+| `payments.py` | Бизнес-логика: правила проверки, `InvoiceService`, `PaymentService` |
+| `watcher.py` | Фоновый процесс `PaymentWatcher` |
+| `api.py` | REST API: схемы, маршруты, проверка API-ключа `ApiKeyGuard` |
+| `main.py` | Сборка всех частей (`Services.build`) и запуск FastAPI |
+| `config.py` | Настройки из переменных окружения |
+| `shop.py` | Демо-магазин «Кофейня» `DemoShop` — пример клиента шлюза |
 
 ```mermaid
 classDiagram
     direction TB
 
-    %% ---------- Domain ----------
+    %% ---------- models.py ----------
     class InvoiceStatus {
         <<enumeration>>
         AWAITING_PAYMENT
@@ -22,34 +28,26 @@ classDiagram
         EXPIRED
         FAILED
     }
-
     class Invoice {
         +id: str
         +amount_wei: int
         +recipient: str
-        +chain_id: int
-        +description: str
-        +order_id: str?
         +status: InvoiceStatus
-        +created_at: datetime
         +expires_at: datetime
         +tx_hash: str?
-        +payer_address: str?
         +confirmations: int
-        +failure_reason: str?
-        +paid_at: datetime?
         +create(...)$ Invoice
         +is_overdue(now) bool
-        +is_final() bool
         +attach_transaction(tx_hash, payer, now)
-        +update_confirmations(n)
+        +update_confirmations(n, now)
         +mark_paid(now)
         +mark_failed(reason, now)
         +expire(now)
+        +to_dict() dict
     }
     Invoice --> InvoiceStatus
 
-    %% ---------- Ports ----------
+    %% ---------- интерфейсы ----------
     class BlockchainGateway {
         <<interface>>
         +get_transaction(tx_hash) ChainTransaction?
@@ -60,67 +58,77 @@ classDiagram
         <<interface>>
         +add(invoice)
         +update(invoice)
-        +get(invoice_id) Invoice?
+        +get(id) Invoice?
         +get_by_tx_hash(tx_hash) Invoice?
-        +list_recent(limit) list~Invoice~
-        +list_by_status(status) list~Invoice~
+        +list_recent(limit) list
+        +list_by_status(status) list
     }
     class PaymentNotifier {
         <<interface>>
         +notify(event: PaymentEvent)
     }
-    class ChainTransaction {
-        +hash: str
-        +from_address: str
-        +to_address: str?
-        +value_wei: int
-        +chain_id: int?
-        +block_number: int?
+    class TimelineRepository {
+        <<interface>>
+        +add(entry: TimelineEntry)
+        +list_for(invoice_id) list
     }
-    class ChainReceipt {
-        +success: bool
-        +block_number: int
-    }
-    class PaymentEvent {
-        +type: str
-        +invoice: Invoice
-        +occurred_at: datetime
-    }
-    BlockchainGateway ..> ChainTransaction
-    BlockchainGateway ..> ChainReceipt
-    PaymentNotifier ..> PaymentEvent
 
-    %% ---------- Services ----------
+    %% ---------- реализации ----------
+    class EthereumRpcGateway {
+        +rpc_url: str
+        +call(method, params)
+    }
+    class SqlInvoiceRepository
+    class LoggingNotifier
+    class TimelineNotifier
+    class WebhookNotifier {
+        +url: str
+        +sign(body) str
+    }
+    class TelegramNotifier {
+        +chat_id: str
+        +text(event) str
+    }
+    class SqlTimelineRepository
+    class CompositeNotifier {
+        +notifiers: list
+    }
+    BlockchainGateway <|.. EthereumRpcGateway
+    InvoiceRepository <|.. SqlInvoiceRepository
+    PaymentNotifier <|.. LoggingNotifier
+    PaymentNotifier <|.. WebhookNotifier
+    PaymentNotifier <|.. TimelineNotifier
+    PaymentNotifier <|.. TelegramNotifier
+    TimelineRepository <|.. SqlTimelineRepository
+    TimelineNotifier --> TimelineRepository
+    PaymentNotifier <|.. CompositeNotifier
+    CompositeNotifier o-- PaymentNotifier
+
+    %% ---------- payments.py ----------
     class ValidationRule {
         <<interface>>
         +check(invoice, tx) str?
     }
+    class ChainIdRule
     class RecipientRule
     class AmountRule
-    class ChainIdRule
     class PaymentValidator {
-        -rules: list~ValidationRule~
+        +rules: list~ValidationRule~
         +validate(invoice, tx) list~str~
     }
+    ValidationRule <|.. ChainIdRule
     ValidationRule <|.. RecipientRule
     ValidationRule <|.. AmountRule
-    ValidationRule <|.. ChainIdRule
     PaymentValidator o-- ValidationRule
 
     class InvoiceService {
-        -repo: InvoiceRepository
-        -notifier: PaymentNotifier
-        +create_invoice(amount_eth, description, order_id, ttl) Invoice
+        +create_invoice(amount, description, order_id, ttl) Invoice
         +get_invoice(id) Invoice
-        +list_invoices(limit) list~Invoice~
+        +list_invoices(limit) list
         +expire_overdue() int
     }
     class PaymentService {
-        -repo: InvoiceRepository
-        -chain: BlockchainGateway
-        -validator: PaymentValidator
-        -notifier: PaymentNotifier
-        -required_confirmations: int
+        +required_confirmations: int
         +submit_transaction(invoice_id, tx_hash) Invoice
         +refresh(invoice) Invoice
         +process_pending() int
@@ -132,72 +140,64 @@ classDiagram
     PaymentService --> PaymentValidator
     PaymentService --> PaymentNotifier
 
-    %% ---------- Adapters ----------
-    class EthereumJsonRpcGateway {
-        -rpc_url: str
-        -http: httpx.Client
-        -call(method, params)
-    }
-    class SqlAlchemyInvoiceRepository {
-        -session_factory
-    }
-    class LoggingNotifier
-    class WebhookNotifier {
-        -url: str
-        -secret: str
-        +sign(body) str
-    }
-    class CompositeNotifier {
-        -notifiers: list~PaymentNotifier~
-    }
-    BlockchainGateway <|.. EthereumJsonRpcGateway
-    InvoiceRepository <|.. SqlAlchemyInvoiceRepository
-    PaymentNotifier <|.. LoggingNotifier
-    PaymentNotifier <|.. WebhookNotifier
-    PaymentNotifier <|.. CompositeNotifier
-    CompositeNotifier o-- PaymentNotifier
-
-    %% ---------- Entry points ----------
+    %% ---------- watcher.py, api.py, main.py ----------
     class PaymentWatcher {
-        -invoices: InvoiceService
-        -payments: PaymentService
-        -interval: float
+        +tick()
         +start()
         +stop()
-        +tick()
     }
-    class Container {
+    class ApiKeyGuard {
+        +api_key: str
+        +required: bool
+        +check(provided)
+    }
+    class DemoShop {
+        +create_order(cart) ShopOrder
+        +handle_webhook(body, signature) ShopOrder
+    }
+    DemoShop --> InvoiceService : создаёт счёт
+    class Services {
         +settings: Settings
-        +invoice_service: InvoiceService
-        +payment_service: PaymentService
+        +invoices: InvoiceService
+        +payments: PaymentService
         +watcher: PaymentWatcher
-        +build(settings)$ Container
+        +guard: ApiKeyGuard
+        +shop: DemoShop
+        +build(settings)$ Services
     }
     PaymentWatcher --> InvoiceService
     PaymentWatcher --> PaymentService
-    Container ..> EthereumJsonRpcGateway : creates
-    Container ..> SqlAlchemyInvoiceRepository : creates
-    Container ..> CompositeNotifier : creates
-    Container *-- InvoiceService
-    Container *-- PaymentService
-    Container *-- PaymentWatcher
+    Services *-- InvoiceService
+    Services *-- PaymentService
+    Services *-- PaymentWatcher
+    Services *-- ApiKeyGuard
+    Services *-- DemoShop
+    Services ..> SqlInvoiceRepository : создаёт
+    Services ..> EthereumRpcGateway : создаёт
+    Services ..> CompositeNotifier : создаёт
 ```
 
 Тестовые заменители (`FakeBlockchain`, `InMemoryInvoiceRepository` и
-`RecordingNotifier` в `backend/tests/fakes.py`) реализуют те же порты. Поэтому
+`RecordingNotifier` в `backend/tests/fakes.py`) реализуют те же интерфейсы. Поэтому
 сервисы можно тестировать без сети и без базы данных (принцип подстановки Лисков).
 
-## Слои и направление зависимостей
+## Кто от кого зависит
 
 ```mermaid
 flowchart LR
-    API[api / workers] --> Services[services]
-    Services --> Ports[ports]
-    Services --> Domain[domain]
-    Adapters[adapters] -. реализуют .-> Ports
-    Container[container] --> Adapters
-    Container --> Services
+    api[api.py] --> payments[payments.py]
+    watcher[watcher.py] --> payments
+    payments --> models[models.py]
+    payments -. интерфейсы .-> blockchain[blockchain.py]
+    payments -. интерфейсы .-> database[database.py]
+    payments -. интерфейсы .-> notifications[notifications.py]
+    main[main.py] --> api
+    main --> watcher
+    main -->|выбирает реализации| blockchain
+    main -->|выбирает реализации| database
+    main -->|выбирает реализации| notifications
 ```
 
-Все стрелки направлены **внутрь**, к домену. Ядро ничего не знает о FastAPI,
-SQLAlchemy или Ethereum JSON-RPC.
+`payments.py` работает только с интерфейсами (`BlockchainGateway`,
+`InvoiceRepository`, `PaymentNotifier`). Конкретные классы выбираются в одном
+месте: `Services.build()` в `main.py`.

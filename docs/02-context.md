@@ -13,7 +13,8 @@ flowchart TB
 
     Wallet[(🦊 MetaMask<br/><i>браузерный кошелёк,<br/>подписывает транзакции</i>)]
     Chain[(⛓ Ethereum Sepolia<br/><i>через JSON-RPC провайдера</i>)]
-    MerchantBackend[(🏪 Бэкенд магазина<br/><i>принимает вебхуки</i>)]
+    MerchantBackend[(🏪 Бэкенд магазина<br/><i>принимает вебхуки;<br/>в проекте — демо-«Кофейня»</i>)]
+    Telegram[(✈️ Telegram<br/><i>уведомления продавцу</i>)]
 
     Merchant -- "создаёт счёт (REST + API-ключ)" --> Gateway
     Customer -- "открывает страницу оплаты (HTTPS)" --> Gateway
@@ -21,6 +22,7 @@ flowchart TB
     Wallet -- "отправляет подписанную транзакцию" --> Chain
     Gateway -- "читает транзакции, квитанции, номер блока (JSON-RPC)" --> Chain
     Gateway -- "invoice.paid / failed / expired (подписанный вебхук)" --> MerchantBackend
+    Gateway -- "сообщение об оплате (Bot API)" --> Telegram
 ```
 
 ## 2.2 Контейнеры (C4, уровень 2)
@@ -41,7 +43,8 @@ flowchart TB
     end
 
     RPC[(Sepolia JSON-RPC<br/><i>публичная нода / Alchemy / Infura</i>)]
-    Hook[(URL вебхука магазина)]
+    Hook[(URL вебхука магазина<br/><i>по умолчанию /api/shop/webhook</i>)]
+    TG[(Telegram Bot API)]
 
     Browser -- "загружает сайт (HTTPS)" --> SPA
     SPA -- "fetch JSON, тот же домен" --> API
@@ -51,6 +54,7 @@ flowchart TB
     API -- "eth_getTransactionByHash" --> RPC
     Watcher -- "eth_getTransactionReceipt,<br/>eth_blockNumber" --> RPC
     Watcher -- "HTTP POST + X-Signature" --> Hook
+    Watcher -- "sendMessage" --> TG
 ```
 
 Сайт и API отдаются **одним сервисом с одного домена**. Поэтому не нужна

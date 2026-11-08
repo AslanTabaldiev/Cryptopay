@@ -13,6 +13,18 @@ const HOW_IT_WORKS = [
   { n: "3", title: "Сервис подтверждает", text: "Проверяет транзакцию в блокчейне, ждёт подтверждений и уведомляет магазин." },
 ];
 
+function StatusStrip({ config }) {
+  const online = Boolean(config);
+  return (
+    <ul className="status-strip" aria-label="Состояние системы">
+      <li><span className={`dot ${online ? "dot-ok" : "dot-wait"}`} /> API {online ? "онлайн" : "подключается…"}</li>
+      <li>Сеть {config?.network_name ?? "Sepolia"}</li>
+      <li>{config?.required_confirmations ?? 2} подтверждения</li>
+      <li>API-ключ: {config ? (config.auth_required ? "включён" : "выключен") : "…"}</li>
+    </ul>
+  );
+}
+
 export default function Home() {
   const navigate = useNavigate();
   const { config } = useConfig();
@@ -57,12 +69,15 @@ export default function Home() {
           <button className="btn btn-primary btn-lg" onClick={tryPayment} disabled={creating}>
             {creating ? "Создаём счёт…" : "Попробовать оплату"}
           </button>
-          <Link className="btn btn-secondary btn-lg" to="/dashboard">Кабинет магазина</Link>
+          <Link className="btn btn-secondary btn-lg" to="/shop">Демо-магазин «Кофейня»</Link>
         </div>
         {error && <div className="alert narrow-alert">{error}</div>}
         <p className="muted small hero-note">
-          «Попробовать оплату» создаст тестовый счёт на 0.001 ETH и откроет страницу оплаты.
+          {config?.auth_required
+            ? "Сейчас включена проверка API-ключа — счёт создаётся в кабинете, ключ показан там же."
+            : "«Попробовать оплату» создаст тестовый счёт на 0.001 ETH и откроет страницу оплаты. Регистрация не нужна."}
         </p>
+        <StatusStrip config={config} />
       </section>
 
       <section className="section">
@@ -111,7 +126,7 @@ export default function Home() {
         </ol>
       </section>
 
-      <section className="section">
+      <section className="section" id="how">
         <h2 className="section-title">Как это устроено</h2>
         <div className="steps">
           {HOW_IT_WORKS.map((s) => (

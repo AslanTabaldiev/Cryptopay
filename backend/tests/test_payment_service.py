@@ -2,16 +2,15 @@ from decimal import Decimal
 
 import pytest
 
-from app.domain.errors import (
+from app.models import (
     InvalidTransactionHash,
     InvoiceNotPayable,
+    InvoiceStatus,
     PaymentRejected,
     TransactionAlreadyUsed,
+    eth_to_wei,
 )
-from app.domain.invoice import InvoiceStatus
-from app.services.invoice_service import InvoiceService, eth_to_wei
-from app.services.payment_service import PaymentService
-from app.services.validation import PaymentValidator, ValidationRule
+from app.payments import InvoiceService, PaymentService, PaymentValidator, ValidationRule
 from tests.fakes import (
     MERCHANT,
     FakeBlockchain,
@@ -34,7 +33,7 @@ def env():
         repo, notifier, recipient=MERCHANT, chain_id=11155111, default_ttl_minutes=15, clock=clock
     )
     payments = PaymentService(
-        repo, chain, PaymentValidator.default(), notifier,
+        repo, chain, PaymentValidator(), notifier,
         required_confirmations=2, tx_not_found_timeout_minutes=10, clock=clock,
     )
 
@@ -71,7 +70,7 @@ def test_full_payment_flow(env):
     paid = env.repo.get(env.invoice.id)
     assert paid.status is InvoiceStatus.PAID
     assert paid.paid_at is not None
-    assert env.notifier.types == ["invoice.paid"]
+    assert env.notifier.final_types == ["invoice.paid"]
 
 
 def test_overpayment_is_accepted(env):
@@ -133,7 +132,7 @@ def test_reverted_transaction_fails_invoice(env):
     failed = env.repo.get(env.invoice.id)
     assert failed.status is InvoiceStatus.FAILED
     assert "reverted" in failed.failure_reason
-    assert env.notifier.types == ["invoice.failed"]
+    assert env.notifier.final_types == ["invoice.failed"]
 
 
 def test_unknown_tx_is_accepted_then_validated_later(env):
@@ -160,7 +159,7 @@ def test_invoice_expires(env):
     env.clock.advance(minutes=16)
     assert env.invoices.expire_overdue() == 1
     assert env.repo.get(env.invoice.id).status is InvoiceStatus.EXPIRED
-    assert env.notifier.types == ["invoice.expired"]
+    assert env.notifier.final_types == ["invoice.expired"]
 
 
 def test_cannot_pay_expired_invoice(env):
@@ -178,7 +177,7 @@ def test_custom_rule_can_be_added_without_changing_validator(env):
         def check(self, invoice, tx):
             return "Плательщик заблокирован" if tx.from_address.endswith("2222") else None
 
-    validator = PaymentValidator([*PaymentValidator.default()._rules, MinimumPayerRule()])
+    validator = PaymentValidator([*PaymentValidator().rules, MinimumPayerRule()])
     h = tx_hash(12)
     env.chain.broadcast(h, value=AMOUNT)
     assert validator.validate(env.invoice, env.chain.get_transaction(h)) == ["Плательщик заблокирован"]

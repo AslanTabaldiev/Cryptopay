@@ -16,11 +16,17 @@ services:
       - key: MERCHANT_ADDRESS
         sync: false # публичный адрес магазина из MetaMask (0x...)
       - key: MERCHANT_API_KEY
-        sync: false # пусто = демо-режим (счета без ключа); задайте значение, чтобы закрыть кабинет паролем
+        sync: false # необязательно; по умолчанию cryptopay-demo-key (ключ показан на сайте)
+      - key: API_KEY_REQUIRED
+        value: "false" # проверку ключа можно включить переключателем в кабинете
       - key: WEBHOOK_SECRET
         generateValue: true
       - key: WEBHOOK_URL
-        sync: false # необязательно, например https://webhook.site/...
+        sync: false # необязательно; пусто = вебхуки идут во встроенную «Кофейню»
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false # необязательно: токен бота от @BotFather
+      - key: TELEGRAM_CHAT_ID
+        sync: false # необязательно: ваш chat_id в Telegram
       - key: RPC_URL
         value: https://ethereum-sepolia-rpc.publicnode.com
       - key: REQUIRED_CONFIRMATIONS

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api } from "../lib/api.js";
-import { useConfig } from "../lib/useConfig.js";
 import BackLink from "../components/BackLink.jsx";
 import StatusPill from "../components/StatusPill.jsx";
 
@@ -27,8 +26,14 @@ function saveKey(value) {
 const paymentUrl = (id) => `${window.location.origin}/pay/${id}`;
 
 export default function Dashboard() {
-  const { config, error: configError } = useConfig();
-  const needsKey = config?.auth_required ?? false;
+  const [access, setAccess] = useState(null); // { required, api_key } — переключатель API-ключа
+  const [accessError, setAccessError] = useState("");
+  const [toggling, setToggling] = useState(false);
+  const needsKey = access?.required ?? false;
+
+  useEffect(() => {
+    api.getAccess().then(setAccess).catch((e) => setAccessError(e.message));
+  }, []);
 
   const [apiKey, setApiKey] = useState(loadKey);
   const [keyDraft, setKeyDraft] = useState(apiKey);
@@ -40,7 +45,7 @@ export default function Dashboard() {
   const [created, setCreated] = useState(null);
   const [copied, setCopied] = useState("");
 
-  const canWork = config && (!needsKey || apiKey);
+  const canWork = access && (!needsKey || apiKey);
 
   const refresh = useCallback(async () => {
     if (!canWork) return;
@@ -61,10 +66,33 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, [refresh]);
 
-  function applyKey(e) {
-    e.preventDefault();
-    saveKey(keyDraft.trim());
-    setApiKey(keyDraft.trim());
+  function applyKey(value) {
+    saveKey(value.trim());
+    setApiKey(value.trim());
+    setKeyDraft(value.trim());
+    setError("");
+  }
+
+  async function toggleAccess() {
+    setToggling(true);
+    try {
+      setAccess(await api.setAccess(!needsKey));
+      setError("");
+    } catch (e) {
+      setAccessError(e.message);
+    } finally {
+      setToggling(false);
+    }
+  }
+
+  async function copyKey() {
+    try {
+      await navigator.clipboard.writeText(access.api_key);
+      setCopied("key");
+      setTimeout(() => setCopied(""), 1500);
+    } catch {
+      window.prompt("Скопируйте API-ключ", access.api_key);
+    }
   }
 
   async function create(e) {
@@ -108,32 +136,60 @@ export default function Dashboard() {
         <p className="subtitle">Создайте счёт, отправьте ссылку покупателю и следите за оплатой.</p>
       </div>
 
-      {configError && <div className="alert">{configError}</div>}
+      {accessError && <div className="alert">{accessError}</div>}
 
-      {needsKey && (
-        <form className="card key-card" onSubmit={applyKey}>
-          <label className="field grow">
-            <span>API-ключ магазина</span>
-            <input
-              type="password"
-              value={keyDraft}
-              onChange={(e) => setKeyDraft(e.target.value)}
-              placeholder="Вставьте ключ"
-              autoComplete="off"
-            />
-            <small className="hint">
-              Это пароль продавца: без него посторонние не смогут создавать счета от имени магазина.
-              Покупателю ключ не нужен. Ключ задаётся в настройках сервера (переменная MERCHANT_API_KEY).
-            </small>
-          </label>
-          <button className="btn btn-secondary" type="submit">Применить</button>
-        </form>
-      )}
+      {access && (
+        <div className="card access-card">
+          <div className="row-between">
+            <div>
+              <h2 className="card-title tight">Проверка API-ключа</h2>
+              <p className="muted small">
+                API-ключ — это пароль магазина: без него посторонние не смогут создавать счета от вашего имени.
+                Покупателю ключ не нужен. Это учебный проект, поэтому проверку можно включить и выключить здесь.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={needsKey}
+              aria-label="Требовать API-ключ"
+              className={`switch ${needsKey ? "on" : ""}`}
+              onClick={toggleAccess}
+              disabled={toggling}
+            >
+              <span />
+            </button>
+          </div>
 
-      {config && !needsKey && (
-        <div className="notice">
-          <strong>Демо-режим.</strong> API-ключ отключён, поэтому создавать счета может любой посетитель.
-          Для настоящего магазина ключ включается одной переменной MERCHANT_API_KEY на сервере.
+          {needsKey ? (
+            <>
+              <div className="key-line">
+                <span className="muted small">Ключ магазина:</span>
+                <code className="mono">{access.api_key}</code>
+                <button type="button" className="btn btn-link" onClick={copyKey}>
+                  {copied === "key" ? "Скопировано" : "Копировать"}
+                </button>
+              </div>
+              <form className="key-form" onSubmit={(e) => { e.preventDefault(); applyKey(keyDraft); }}>
+                <label className="field grow">
+                  <span>Введите ключ, чтобы работать с кабинетом</span>
+                  <input
+                    value={keyDraft}
+                    onChange={(e) => setKeyDraft(e.target.value)}
+                    placeholder="X-API-Key"
+                    autoComplete="off"
+                  />
+                </label>
+                <button className="btn btn-secondary" type="submit">Применить</button>
+                <button className="btn btn-link" type="button" onClick={() => applyKey(access.api_key)}>
+                  Подставить ключ
+                </button>
+              </form>
+              {apiKey && apiKey === access.api_key && <p className="ok-text small">✓ Ключ принят</p>}
+            </>
+          ) : (
+            <p className="small state-off">Сейчас проверка выключена — счета можно создавать без ключа.</p>
+          )}
         </div>
       )}
 

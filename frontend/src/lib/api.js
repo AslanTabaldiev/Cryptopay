@@ -35,7 +35,14 @@ async function request(path, { method = "GET", body, apiKey } = {}) {
 
 export const api = {
   config: () => request("/api/config"),
+  getAccess: () => request("/api/access"),
+  setAccess: (required) => request("/api/access", { method: "POST", body: { required } }),
   getInvoice: (id) => request(`/api/invoices/${encodeURIComponent(id)}`),
+  getEvents: (id) => request(`/api/invoices/${encodeURIComponent(id)}/events`),
+  shopProducts: () => request("/api/shop/products"),
+  shopOrders: () => request("/api/shop/orders"),
+  shopOrder: (id) => request(`/api/shop/orders/${encodeURIComponent(id)}`),
+  createShopOrder: (items) => request("/api/shop/orders", { method: "POST", body: { items } }),
   listInvoices: (apiKey) => request("/api/invoices", { apiKey }),
   createInvoice: (apiKey, body) => request("/api/invoices", { method: "POST", apiKey, body }),
   submitTransaction: (id, txHash) =>

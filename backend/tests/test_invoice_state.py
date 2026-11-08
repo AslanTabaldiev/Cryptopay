@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pytest
 
-from app.domain.invoice import InvalidStateTransition, Invoice, InvoiceStatus
+from app.models import InvalidStateTransition, Invoice, InvoiceStatus
 from tests.fakes import MERCHANT, SEPOLIA, FakeClock, tx_hash
 
 

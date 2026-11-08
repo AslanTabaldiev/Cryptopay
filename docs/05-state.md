@@ -1,7 +1,7 @@
 # 5. Диаграмма состояний: жизненный цикл счёта
 
 Сущность `Invoice` сама следит за допустимыми переходами (см.
-`backend/app/domain/invoice.py`). Любой другой переход выбрасывает
+`backend/app/models.py`). Любой другой переход выбрасывает
 `InvalidStateTransition`.
 
 ```mermaid

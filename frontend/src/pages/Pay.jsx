@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { api, FINAL_STATUSES } from "../lib/api.js";
 import {
@@ -13,6 +13,7 @@ import {
 } from "../lib/wallet.js";
 import BackLink from "../components/BackLink.jsx";
 import StatusPill from "../components/StatusPill.jsx";
+import Timeline from "../components/Timeline.jsx";
 
 function useCountdown(expiresAt) {
   const [now, setNow] = useState(() => Date.now());
@@ -39,6 +40,9 @@ async function submitWithRetry(id, hash, attempts = 3) {
 
 export default function Pay() {
   const { id } = useParams();
+  const [params] = useSearchParams();
+  // куда вернуть покупателя после оплаты (например, на страницу заказа в демо-магазине)
+  const returnTo = (params.get("return") || "").startsWith("/") ? params.get("return") : "";
   const [invoice, setInvoice] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [account, setAccount] = useState("");
@@ -110,7 +114,7 @@ export default function Pay() {
   if (loadError) {
     return (
       <div className="page narrow">
-        <BackLink fallback="/" />
+        <BackLink fallback={returnTo || "/"} />
         <div className="card pay-card center-text">
           <h1 className="title-sm">Счёт недоступен</h1>
           <p className="muted">{loadError}</p>
@@ -134,7 +138,7 @@ export default function Pay() {
 
   return (
     <div className="page narrow">
-      <BackLink fallback="/" />
+      <BackLink fallback={returnTo || "/"} />
       <div className="card pay-card">
         <div className="row-between">
           <span className="muted small">Оплата криптовалютой</span>
@@ -218,7 +222,8 @@ export default function Pay() {
               Продавец уже получил деньги и уведомление.
             </p>
             <div className="next-actions">
-              <a className="btn btn-primary full" href={invoice.explorer_tx_url} target="_blank" rel="noreferrer">
+              {returnTo && <Link className="btn btn-primary full" to={returnTo}>Вернуться в магазин</Link>}
+              <a className={`btn ${returnTo ? "btn-secondary" : "btn-primary"} full`} href={invoice.explorer_tx_url} target="_blank" rel="noreferrer">
                 Посмотреть транзакцию в Etherscan ↗
               </a>
               <Link className="btn btn-secondary full" to="/dashboard">Создать новый счёт</Link>
@@ -232,7 +237,8 @@ export default function Pay() {
             <p><strong>Срок действия счёта истёк</strong></p>
             <p className="muted small">Оплатить этот счёт уже нельзя. Попросите у продавца новую ссылку или создайте новый счёт.</p>
             <div className="next-actions">
-              <Link className="btn btn-primary full" to="/dashboard">Создать новый счёт</Link>
+              {returnTo && <Link className="btn btn-primary full" to={returnTo}>Вернуться в магазин</Link>}
+              <Link className={`btn ${returnTo ? "btn-secondary" : "btn-primary"} full`} to="/dashboard">Создать новый счёт</Link>
               <Link className="btn btn-link" to="/">На главную</Link>
             </div>
           </div>
@@ -243,7 +249,8 @@ export default function Pay() {
             <p><strong>Оплата не прошла</strong></p>
             <p className="muted small">{invoice.failure_reason}</p>
             <div className="next-actions">
-              <Link className="btn btn-primary full" to="/dashboard">Создать новый счёт</Link>
+              {returnTo && <Link className="btn btn-primary full" to={returnTo}>Вернуться в магазин</Link>}
+              <Link className={`btn ${returnTo ? "btn-secondary" : "btn-primary"} full`} to="/dashboard">Создать новый счёт</Link>
               <Link className="btn btn-link" to="/">На главную</Link>
             </div>
           </div>
@@ -251,6 +258,7 @@ export default function Pay() {
 
         {error && <div className="alert">{error}</div>}
       </div>
+      <Timeline invoiceId={invoice.id} final={FINAL_STATUSES.includes(status)} />
     </div>
   );
 }

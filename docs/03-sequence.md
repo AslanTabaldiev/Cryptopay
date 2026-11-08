@@ -7,14 +7,14 @@ sequenceDiagram
     autonumber
     actor M as Продавец
     participant API as InvoiceRouter (FastAPI)
-    participant Auth as require_api_key
+    participant Auth as ApiKeyGuard
     participant IS as InvoiceService
     participant Repo as InvoiceRepository
     participant DB as База данных
 
     M->>API: POST /api/invoices {amount_eth, description, ttl_minutes}<br/>X-API-Key
-    API->>Auth: проверить ключ
-    alt ключ неверный
+    API->>Auth: проверить ключ (ApiKeyGuard)
+    alt проверка включена и ключ неверный
         Auth-->>M: 401 Unauthorized
     end
     API->>IS: create_invoice(amount_eth, description, order_id, ttl)
@@ -119,4 +119,41 @@ sequenceDiagram
             end
         end
     end
+```
+
+## 3.4 Заказ в демо-магазине «Кофейня»: интеграция через вебхук (FR-18)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor C as Покупатель
+    participant Shop as Кофейня (DemoShop)
+    participant IS as InvoiceService
+    participant Pay as Страница оплаты
+    participant W as MetaMask
+    participant PS as PaymentService
+    participant N as Уведомители
+    participant TG as Telegram
+
+    C->>Shop: POST /api/shop/orders {latte: 2, croissant: 1}
+    Shop->>IS: create_invoice(0.0014 ETH, "Кофейня: Латте ×2, …")
+    IS-->>Shop: invoice (AWAITING_PAYMENT)
+    Shop-->>C: заказ + ссылка /pay/{invoice_id}?return=/shop/orders/{id}
+    C->>Pay: открыть страницу оплаты
+    Pay->>W: eth_sendTransaction
+    W-->>Pay: txHash
+    Pay->>PS: POST /api/invoices/{id}/transaction
+    Note over PS: подтверждения считает PaymentWatcher (диаграмма 3.3)
+    PS->>N: PaymentEvent invoice.paid
+    N->>N: TimelineNotifier — запись в хронологию
+    N->>Shop: POST /api/shop/webhook + X-Signature
+    Shop->>Shop: проверить HMAC-подпись
+    alt подпись неверная
+        Shop-->>N: 401 (заказ не меняется)
+    else подпись верная
+        Shop->>Shop: заказ → «Оплачен»
+        Shop-->>N: 200
+    end
+    N->>TG: sendMessage «💰 Счёт оплачен»
+    Pay-->>C: «Оплата получена» → кнопка «Вернуться в магазин»
 ```
